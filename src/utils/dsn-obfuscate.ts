@@ -54,6 +54,21 @@ export function parseConnectionInfoFromDSN(dsn: string): ParsedConnectionInfo | 
       return { type };
     }
 
+    // Handle JDBC URLs (e.g., jdbc:updb://host:port/database)
+    if (type === 'jdbc') {
+      // Parse jdbc URL format: jdbc:subprotocol://host:port/database
+      const jdbcMatch = dsn.match(/^jdbc:(\w+):\/\/([^:/]+)(?::(\d+))?(?:\/(.*))?$/);
+      if (jdbcMatch) {
+        return {
+          type,
+          host: jdbcMatch[2],
+          port: jdbcMatch[3] ? parseInt(jdbcMatch[3], 10) : undefined,
+          database: jdbcMatch[4] || undefined,
+        };
+      }
+      return { type };
+    }
+
     // Parse other database DSNs using SafeURL
     const url = new SafeURL(dsn);
 
@@ -98,6 +113,11 @@ export function obfuscateDSNPassword(dsn: string): string {
 
     // SQLite has no password to obfuscate
     if (type === 'sqlite') {
+      return dsn;
+    }
+
+    // JDBC URLs don't contain password — it's passed separately
+    if (type === 'jdbc') {
       return dsn;
     }
 
@@ -191,7 +211,9 @@ function protocolToConnectorType(protocol: string): ConnectorType | undefined {
     'mysql': 'mysql',
     'mariadb': 'mariadb',
     'sqlserver': 'sqlserver',
-    'sqlite': 'sqlite'
+    'sqlite': 'sqlite',
+    'jdbc': 'jdbc',
+    'updb': 'jdbc',  // UPDB via JDBC connector
   };
   return mapping[protocol];
 }
@@ -208,6 +230,7 @@ export function getDefaultPortForType(type: ConnectorType): number | undefined {
     'mariadb': 3306,
     'sqlserver': 1433,
     'sqlite': undefined,
+    'jdbc': undefined,  // JDBC port is embedded in jdbc_url, no default
   };
   return ports[type];
 }

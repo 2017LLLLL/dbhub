@@ -203,9 +203,23 @@ export class ConnectorManager {
       }
 
       // Parse DSN to get target host and port
-      const url = new URL(dsn);
-      const targetHost = url.hostname;
-      const targetPort = parseInt(url.port) || this.getDefaultPort(dsn);
+      let targetHost: string;
+      let targetPort: number;
+
+      // Handle JDBC URLs specially (e.g., jdbc:updb://host:port/database)
+      if (dsn.startsWith("jdbc:")) {
+        const jdbcMatch = dsn.match(/^jdbc:\w+:\/\/([^:/]+)(?::(\d+))?(?:\/|$)/);
+        if (jdbcMatch) {
+          targetHost = jdbcMatch[1];
+          targetPort = jdbcMatch[2] ? parseInt(jdbcMatch[2], 10) : 0;
+        } else {
+          throw new Error(`Source '${sourceId}': unable to parse JDBC URL for SSH tunnel: ${dsn}`);
+        }
+      } else {
+        const url = new URL(dsn);
+        targetHost = url.hostname;
+        targetPort = parseInt(url.port) || this.getDefaultPort(dsn);
+      }
 
       // Create and establish SSH tunnel
       const tunnel = new SSHTunnel();
@@ -223,9 +237,18 @@ export class ConnectorManager {
       }
 
       // Update DSN to use local tunnel endpoint
-      url.hostname = "127.0.0.1";
-      url.port = tunnelInfo.localPort.toString();
-      actualDSN = url.toString();
+      if (dsn.startsWith("jdbc:")) {
+        // Rewrite JDBC URL: jdbc:updb://host:port/db → jdbc:updb://127.0.0.1:tunnelPort/db
+        actualDSN = dsn.replace(
+          /^(jdbc:\w+:\/\/)[^:/]+(?::\d+)?(\/|$)/,
+          `$1127.0.0.1:${tunnelInfo.localPort}$2`
+        );
+      } else {
+        const url = new URL(actualDSN);
+        url.hostname = "127.0.0.1";
+        url.port = tunnelInfo.localPort.toString();
+        actualDSN = url.toString();
+      }
 
       // Store tunnel for later cleanup
       this.sshTunnels.set(sourceId, tunnel);
@@ -249,6 +272,11 @@ export class ConnectorManager {
 
     // Attach source ID to connector instance for tool handlers
     (connector as any).sourceId = sourceId;
+
+    // Pass full source config to connectors that need it (e.g., JDBC connector)
+    if (typeof (connector as any).setSourceConfig === "function") {
+      (connector as any).setSourceConfig(source);
+    }
 
     // Build config for database-specific options
     const config: ConnectorConfig = {};

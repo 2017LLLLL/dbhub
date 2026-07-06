@@ -38,7 +38,17 @@ RUN pnpm deploy --filter=dbhub --prod --legacy /prod/dbhub
 # ============================================================================
 FROM node:22-alpine
 
+
+
 WORKDIR /app
+
+# 安装 JRE
+RUN apk add --no-cache openjdk17-jre-headless
+# 放入桥接 class ,需要手动执行 javac 命令编译成class 二进制文件
+# javac src/connectors/jdbc/JdbcBridge.java -d bridge-out/
+RUN mkdir -p /app/drivers /app/bridge
+
+COPY bridge-out/JdbcBridge.class /app/bridge/JdbcBridge.class
 
 # Copy optimized production dependencies from deploy directory
 # This includes node_modules with an efficient .pnpm store structure
@@ -60,4 +70,4 @@ ENV NODE_ENV=production
 # Run the MCP server
 # By default, uses stdio transport for MCP protocol communication
 # Override with --transport=http for HTTP-based MCP clients
-ENTRYPOINT ["node", "dist/index.js"]
+ENTRYPOINT ["node", "dist/index.js", "--config", "/app/config/dbhub.toml", "--transport", "http"]

@@ -372,7 +372,9 @@ function validateDSNFieldConflicts(source: SourceConfig, configPath: string): vo
  */
 function validateSourceConfig(source: SourceConfig, configPath: string): void {
   const hasConnectionParams =
-    source.type && (source.type === "sqlite" ? source.database : source.host);
+    source.type === "jdbc"
+      ? !!source.jdbc_url
+      : source.type && (source.type === "sqlite" ? source.database : source.host);
 
   if (!source.dsn && !hasConnectionParams) {
     throw new Error(
@@ -385,13 +387,51 @@ function validateSourceConfig(source: SourceConfig, configPath: string): void {
 
   // Validate type if provided
   if (source.type) {
-    const validTypes = ["postgres", "mysql", "mariadb", "sqlserver", "sqlite"];
+    const validTypes = ["postgres", "mysql", "mariadb", "sqlserver", "sqlite", "jdbc"];
     if (!validTypes.includes(source.type)) {
       throw new Error(
         `Configuration file ${configPath}: source '${source.id}' has invalid type '${source.type}'. ` +
           `Valid types: ${validTypes.join(", ")}`
       );
     }
+  }
+
+  // Validate JDBC-specific fields
+  if (source.type === "jdbc") {
+    // jdbc_url is required for JDBC sources
+    if (!source.jdbc_url) {
+      throw new Error(
+        `Configuration file ${configPath}: source '${source.id}' has type 'jdbc' but 'jdbc_url' is not specified. ` +
+          `JDBC sources require jdbc_url (e.g., "jdbc:updb://192.168.1.100:5999/UPDB").`
+      );
+    }
+    // driver_class is required for JDBC sources
+    if (!source.driver_class) {
+      throw new Error(
+        `Configuration file ${configPath}: source '${source.id}' has type 'jdbc' but 'driver_class' is not specified. ` +
+          `JDBC sources require driver_class (e.g., "com.upright.updb.jdbc.UPDBDriver").`
+      );
+    }
+    // Validate max_connections if provided
+    if (source.max_connections !== undefined) {
+      if (typeof source.max_connections !== "number" || source.max_connections < 1) {
+        throw new Error(
+          `Configuration file ${configPath}: source '${source.id}' has invalid max_connections. ` +
+            `Must be a positive integer.`
+        );
+      }
+    }
+    // Validate timeout if provided
+    if (source.timeout !== undefined) {
+      if (typeof source.timeout !== "number" || source.timeout <= 0) {
+        throw new Error(
+          `Configuration file ${configPath}: source '${source.id}' has invalid timeout. ` +
+            `Must be a positive number (in milliseconds).`
+        );
+      }
+    }
+    // JDBC sources don't need host/port/database validation — jdbc_url handles it
+    return;
   }
 
   // Validate AWS IAM auth fields
@@ -829,6 +869,11 @@ function mergeSourceFieldsIntoDSN(dsn: string, source: SourceConfig): string {
  * Similar to buildDSNFromEnvParams in env.ts but for TOML sources
  */
 export function buildDSNFromSource(source: SourceConfig): string {
+  // For JDBC sources, use jdbc_url as the DSN
+  if (source.type === "jdbc" && source.jdbc_url) {
+    return source.jdbc_url;
+  }
+
   // If DSN is already provided, use it — but merge in dual-home fields
   // (sslmode/sslrootcert/instanceName/authentication/domain) so they actually
   // affect the connection. Conflicts between the DSN query string and these

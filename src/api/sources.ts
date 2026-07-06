@@ -29,6 +29,7 @@ function transformSourceConfig(source: SourceConfig): DataSource {
   const dataSource: DataSource = {
     id: source.id,
     type: source.type,
+    tools: [],
   };
 
   // Add description if present

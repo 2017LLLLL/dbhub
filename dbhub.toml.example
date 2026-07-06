@@ -226,6 +226,48 @@ dsn = "postgres://postgres:postgres@localhost:5432/myapp"
 # source = "local_pg"
 
 # ============================================================================
+# JDBC / UPDB (Generic JDBC bridge for databases with JDBC drivers)
+# ============================================================================
+#
+# Supports any database with a JDBC driver by spawning a Java bridge process.
+# Requires: Java JRE 8+ installed on the system or in the container.
+#
+# The JDBC driver JAR file is loaded via driver_path. In Docker, mount the JAR:
+#   docker run -v ./lib/updb-jdbc.jar:/app/drivers/updb6-jdbc.jar ...
+
+# UPDB via JDBC (Oracle-compatible Chinese database by UpRightSoft/鼎天盛华)
+# [[sources]]
+# id = "my_updb"
+# type = "jdbc"
+# description = "UPDB production database"
+# driver_class = "com.upright.updb.jdbc.UPDBDriver"
+# jdbc_url = "jdbc:updb://192.168.1.100:5999/UPDB"
+# user = "app_user"
+# password = "xxxxxx"
+# driver_path = "/app/drivers/updb6-jdbc.jar"  # Path to external JDBC driver JAR
+# max_connections = 10   # Connection pool size (default: 5)
+# timeout = 30000        # Query timeout in milliseconds (default: 30000)
+# # lazy = true           # Optional: defer connection until first query
+# # connection_timeout = 30  # Optional: connection timeout in seconds
+
+# UPDB read-only tool configuration
+# [[tools]]
+# name = "execute_sql"
+# source = "my_updb"
+# readonly = true
+# max_rows = 1000
+
+# Generic JDBC for any JDBC-compatible database
+# [[sources]]
+# id = "generic_jdbc"
+# type = "jdbc"
+# driver_class = "com.example.jdbc.Driver"
+# jdbc_url = "jdbc:example://localhost:1234/mydb"
+# user = "user"
+# password = "pass"
+# driver_path = "/app/drivers/my-driver.jar"
+
+# ============================================================================
 # CUSTOM TOOLS (Optional)
 # ============================================================================
 #

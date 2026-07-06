@@ -27,7 +27,7 @@ export interface SSHConfig {
  * Database connection parameters (alternative to DSN)
  */
 export interface ConnectionParams {
-  type: "postgres" | "mysql" | "mariadb" | "sqlserver" | "sqlite";
+  type: "postgres" | "mysql" | "mariadb" | "sqlserver" | "sqlite" | "jdbc";
   host?: string;
   port?: number;
   database?: string;
@@ -41,6 +41,12 @@ export interface ConnectionParams {
   // SQL Server authentication options
   authentication?: "ntlm" | "azure-active-directory-access-token";
   domain?: string; // Required for NTLM authentication
+  // JDBC-specific options (type = "jdbc")
+  driver_class?: string; // JDBC driver class name, e.g. "com.upright.updb.jdbc.UPDBDriver"
+  jdbc_url?: string;   // JDBC connection URL, e.g. "jdbc:updb://192.168.1.100:5999/UPDB"
+  driver_path?: string; // Path to external JDBC driver JAR file, e.g. "/app/drivers/updb6-jdbc.jar"
+  max_connections?: number; // Max connections in pool (JDBC bridge level), default: 5
+  timeout?: number;    // Query timeout in milliseconds (JDBC bridge level), default: 30000
 }
 
 /**
