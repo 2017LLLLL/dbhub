@@ -25,6 +25,10 @@ COPY . .
 # This runs: generate API types → build backend (tsup) → build frontend (vite)
 RUN pnpm run build
 
+# Compile Java JDBC bridge (requires JDK, not just JRE)
+RUN apk add --no-cache openjdk17
+RUN javac src/connectors/jdbc/JdbcBridge.java -d /app/bridge-out/
+
 # Deploy production dependencies to a clean directory
 # - --filter=dbhub: Only deploy dependencies for the main package (not frontend)
 # - --prod: Only production dependencies (no devDependencies)
@@ -42,13 +46,12 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# 安装 JRE
+# 安装 JRE（运行时运行 Java 桥接）
 RUN apk add --no-cache openjdk17-jre-headless
-# 放入桥接 class ,需要手动执行 javac 命令编译成class 二进制文件
-# javac src/connectors/jdbc/JdbcBridge.java -d bridge-out/
 RUN mkdir -p /app/drivers /app/bridge
 
-COPY bridge-out/JdbcBridge.class /app/bridge/JdbcBridge.class
+# 从 builder 复制编译好的 Java 桥接 class
+COPY --from=builder /app/bridge-out/JdbcBridge.class /app/bridge/JdbcBridge.class
 
 # Copy optimized production dependencies from deploy directory
 # This includes node_modules with an efficient .pnpm store structure
