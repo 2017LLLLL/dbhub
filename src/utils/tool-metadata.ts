@@ -138,7 +138,8 @@ export function getExecuteSqlMetadata(sourceId: string): ToolMetadata {
   // so AI clients reading the MCP tool list see the source's purpose first.
   const userDescPrefix = buildSourceDescriptionPrefix(sourceConfig.description);
   const readonlyNote = executeOptions.readonly ? " [READ-ONLY MODE]" : "";
-  const maxRowsNote = executeOptions.maxRows ? ` (limited to ${executeOptions.maxRows} rows)` : "";
+  const defaultLimit = executeOptions.maxRows || 100;
+  const maxRowsNote = ` (default ${defaultLimit} rows; use max_rows parameter to adjust)`;
   const description = isSingleSource
     ? `${userDescPrefix}Execute SQL queries on the ${dbType} database${readonlyNote}${maxRowsNote}`
     : `${userDescPrefix}Execute SQL queries on the '${sourceId}' ${dbType} database${readonlyNote}${maxRowsNote}`;

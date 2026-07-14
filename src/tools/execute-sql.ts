@@ -15,6 +15,9 @@ import { splitSQLStatements } from "../utils/sql-parser.js";
 // Schema for execute_sql tool
 export const executeSqlSchema = {
   sql: z.string().describe("SQL to execute (multiple statements separated by ;)"),
+  max_rows: z.number().int().positive().optional().describe(
+    "Maximum number of rows to return. If not specified, defaults to 100. Set higher (e.g. 1000) when the user explicitly requests more data."
+  ),
 };
 
 /**
@@ -35,7 +38,7 @@ function areAllStatementsReadOnly(sql: string, connectorType: ConnectorType): bo
  */
 export function createExecuteSqlToolHandler(sourceId?: string) {
   return async (args: any, extra: any) => {
-    const { sql } = args as { sql: string };
+    const { sql, max_rows } = args as { sql: string; max_rows?: number };
     const startTime = Date.now();
     const effectiveSourceId = getEffectiveSourceId(sourceId);
     let success = true;
@@ -63,10 +66,11 @@ export function createExecuteSqlToolHandler(sourceId?: string) {
       }
 
       // Execute the SQL (single or multiple statements) if validation passed
-      // Pass readonly and maxRows from tool config (if set)
+      // max_rows priority: MCP parameter > tool config > bridge default (100)
+      const effectiveMaxRows = max_rows ?? toolConfig?.max_rows;
       const executeOptions = {
         readonly: toolConfig?.readonly,
-        maxRows: toolConfig?.max_rows,
+        maxRows: effectiveMaxRows,
       };
       result = await connector.executeSQL(sql, executeOptions);
 
